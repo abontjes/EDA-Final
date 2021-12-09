@@ -1,0 +1,59 @@
+---
+title: "EDA Final"
+author: "Andrew Bontjes"
+date: "12/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# data cleaning and formatting
+
+#import packages
+library(dplyr)
+library(stringr)
+library(tidyr)
+
+# import data
+library(readr)
+sd <- read_csv("spotify_dataset.csv", 
+    col_types = cols(`Release Date` = col_date(format = "%Y-%m-%d")))
+View(sd)
+
+#get rid of spaces in columns with stringr package
+names(sd)<-str_replace_all(names(sd), c(" " = "."))
+
+#Get rid of values with empty values
+sd <- na.omit(sd)
+
+# Change Chord and Song.ID to factor data type
+sd$Chord <- as.factor(sd$Chord)
+str(sd$Chord)
+
+sd$Song.ID <- as.factor(sd$Song.ID)
+
+#check the summary of the data
+summary(sd)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
