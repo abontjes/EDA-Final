@@ -17,12 +17,14 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(stringr)
 library(tidyr)
+library(ggplot2)
 
-# import data
+# import data and remove unnecessary columns change date format
 library(readr)
 sd <- read_csv("spotify_dataset.csv", 
     col_types = cols(`Release Date` = col_date(format = "%Y-%m-%d"), 
-        `Weeks Charted` = col_skip()))
+        `Weeks Charted` = col_skip(),
+        `Index` = col_skip()))
 View(sd)
 
 #get rid of spaces in columns with stringr package
@@ -37,17 +39,36 @@ str(sd$Chord)
 
 sd$Song.ID <- as.factor(sd$Song.ID)
 
-#check the summary of the data
-summary(sd)
-
 # Set Week of highest charting to usable date format
 sd$Week.of.Highest.Charting <- sapply(strsplit(sd$Week.of.Highest.Charting, "--"), head, 1)
 sd$Week.of.Highest.Charting <- as.Date(sd$Week.of.Highest.Charting, format = "%Y-%m-%d")
+
+# Reformat genre column to one only first genre
+sd$Genre <- gsub(",.*", "", sd$Genre)
+sd$Genre <- gsub(",.*|\\].*", "", sd$Genre)
+sd$Genre <- gsub(",.*|\\].*", "", sd$Genre)
+sd$Genre <- gsub(",.*|\\].*|\\[", "", sd$Genre)
+
+sd$Genre <- as.factor(sd$Genre)
+
+
+#check the summary of the data
+summary(sd)
+str(sd$Genre)
 
 ```
 
 
 
+
+```{r}
+#investigate genre column
+
+ggplot(sd, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+
+table(sd$Genre)
+
+```
 
 
 
