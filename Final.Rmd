@@ -21,7 +21,8 @@ library(tidyr)
 # import data
 library(readr)
 sd <- read_csv("spotify_dataset.csv", 
-    col_types = cols(`Release Date` = col_date(format = "%Y-%m-%d")))
+    col_types = cols(`Release Date` = col_date(format = "%Y-%m-%d"), 
+        `Weeks Charted` = col_skip()))
 View(sd)
 
 #get rid of spaces in columns with stringr package
@@ -39,6 +40,9 @@ sd$Song.ID <- as.factor(sd$Song.ID)
 #check the summary of the data
 summary(sd)
 
+# Set Week of highest charting to usable date format
+sd$Week.of.Highest.Charting <- sapply(strsplit(sd$Week.of.Highest.Charting, "--"), head, 1)
+sd$Week.of.Highest.Charting <- as.Date(sd$Week.of.Highest.Charting, format = "%Y-%m-%d")
 
 ```
 
