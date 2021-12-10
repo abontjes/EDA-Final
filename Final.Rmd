@@ -27,6 +27,8 @@ sd <- read_csv("spotify_dataset.csv",
         `Weeks Charted` = col_skip(),
         `Index` = col_skip()))
 
+colnames(sd)[colnames(sd) == 'Duration.(ms)'] <- 'Duration.ms'
+
 #get rid of spaces in columns with stringr package
 names(sd)<-str_replace_all(names(sd), c(" " = "."))
 
@@ -59,29 +61,63 @@ str(sd$Genre)
 
 ```
 
+```{r}
+# create dataset totaling number of streams for songs that appear multiple times
+
+# df of distinct song ids
+sdu <- sd %>% distinct(Song.ID, .keep_all = TRUE )
+
+# df of distinct song ids without stream column
+sdu <- subset(sdu, select = -c(Streams))
+
+# df of song id and stream sum
+stream_sum <- aggregate(Streams ~ Song.ID, sd, sum)
+
+# df with no duplicates of song id and summed stream number
+sd_no_dup <- merge(sdu, stream_sum, by = "Song.ID")
+
+# correlation matrix of numeric variables with no duplicates
+sdnd <- subset(sd_no_dup, select = -c(Week.of.Highest.Charting , Song.ID , Artist,  Song.Name , Genre ,
+                                      Release.Date , Chord ))
+sdndc <- cor(as.matrix(sdnd))
+
+sd_corr <- corrplot(sdndc, method = 'circle')
+
+#investigate genre column (no duplicate song id)
+
+#subset with top 10 genres
+sdndg <- subset(sd_no_dup, Genre == "dance pop" | Genre == "latin" | Genre == "pop" | Genre == "atl hip hop" | 
+                Genre == "hip hop" | Genre == "k-pop" | Genre == "melodic rap" | 
+                Genre == "brooklyn drill" | Genre == "chicago rap" | Genre == "canadian pop" )
+
+ggplot(sdndg, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
 
 
+
+```
 
 ```{r}
-#investigate genre column
+#investigate genre column (with duplicate song id)
 
 ggplot(sd, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
 
+# make frequency table of genre
 sg <- table(sd$Genre)
+sg <- sort(sg, decreasing = TRUE)
+sg <- head(sg, 11)
 sg
 
 #subset with top 10 genres
 sdg <- subset(sd, Genre == "dance pop" | Genre == "latin" | Genre == "pop" | Genre == "atl hip hop" | 
                 Genre == "hip hop" | Genre == "k-pop" | Genre == "melodic rap" | 
-                Genre == "brooklyn drill" | Genre == "german hip hop" | Genre == "rap" )
+                Genre == "brooklyn drill" | Genre == "chicago rap" | Genre == "canadian pop" )
 
 ggplot(sdg, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
 
 
+
+
 ```
-
-
-
 
 ```{r}
 sdc <- subset(sd, select = -c(Week.of.Highest.Charting , Song.ID , Artist,  Song.Name , Genre , Release.Date , Chord ))
@@ -94,6 +130,37 @@ sd_corr <- corrplot(sdm, method = 'circle')
 
 ```
 
+```{r}
+# turn artists into factor data type
+sd_no_dup$Artist <- as.factor(sd_no_dup$Artist)
+str(sd_no_dup$Artist)
+
+# view frequency of artists
+at <- table(sd_no_dup$Artist)
+at <- sort(at, decreasing = TRUE)
+
+# subset table to top 10 most frequent artists
+at2 <- head(at, 10)
+at2 <- as.matrix(at2)
+at2 <- at2[,0] 
+at2
+
+# subset the data to top 10 artists and find their mean spotify metrics
+ASM <- subset(sd_no_dup, Artist == "Taylor Swift" | Artist == "Justin Bieber" | Artist == "Lil Uzi Vert"
+              | Artist == "Juice WRLD" | Artist == "BTS" | Artist == "Pop Smoke"
+              | Artist == "Bad Bunny" | Artist == "Eminem" | Artist == "The Weeknd"
+              | Artist == "Drake")
+
+ASMax <- aggregate(cbind( Highest.Charting.Position, Number.of.Times.Charted, Artist.Followers)
+                   ~ Artist, data = ASM, FUN = max)
+
+ASMSum <- aggregate(cbind(Popularity, Danceability, Energy, Loudness, Speechiness, Acousticness,
+                          Liveness, Tempo, Valence, Duration.ms,  Streams) ~ Artist, data = ASM, FUN = sum)
+
+TopArtists <- merge(ASMSum, ASMax, by = 'Artist')
+View(TopArtists)
+
+```
 
 
 
