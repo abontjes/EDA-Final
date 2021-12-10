@@ -18,6 +18,7 @@ library(dplyr)
 library(stringr)
 library(tidyr)
 library(ggplot2)
+library(corrplot)
 
 # import data and remove unnecessary columns change date format
 library(readr)
@@ -25,7 +26,6 @@ sd <- read_csv("spotify_dataset.csv",
     col_types = cols(`Release Date` = col_date(format = "%Y-%m-%d"), 
         `Weeks Charted` = col_skip(),
         `Index` = col_skip()))
-View(sd)
 
 #get rid of spaces in columns with stringr package
 names(sd)<-str_replace_all(names(sd), c(" " = "."))
@@ -48,6 +48,7 @@ sd$Genre <- gsub(",.*", "", sd$Genre)
 sd$Genre <- gsub(",.*|\\].*", "", sd$Genre)
 sd$Genre <- gsub(",.*|\\].*", "", sd$Genre)
 sd$Genre <- gsub(",.*|\\].*|\\[", "", sd$Genre)
+sd$Genre <- gsub("'", '', sd$Genre)
 
 sd$Genre <- as.factor(sd$Genre)
 
@@ -66,12 +67,32 @@ str(sd$Genre)
 
 ggplot(sd, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
 
-table(sd$Genre)
+sg <- table(sd$Genre)
+sg
+
+#subset with top 10 genres
+sdg <- subset(sd, Genre == "dance pop" | Genre == "latin" | Genre == "pop" | Genre == "atl hip hop" | 
+                Genre == "hip hop" | Genre == "k-pop" | Genre == "melodic rap" | 
+                Genre == "brooklyn drill" | Genre == "german hip hop" | Genre == "rap" )
+
+ggplot(sdg, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+
 
 ```
 
 
 
+
+```{r}
+sdc <- subset(sd, select = -c(Week.of.Highest.Charting , Song.ID , Artist,  Song.Name , Genre , Release.Date , Chord ))
+sdm <- cor(as.matrix(sdc))
+
+str(sdm)
+
+sd_corr <- corrplot(sdm, method = 'circle')
+
+
+```
 
 
 
