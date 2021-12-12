@@ -1,0 +1,197 @@
+---
+title: "Final Project"
+author: "Ryker Pedde"
+date: "12/7/2021"
+output: html_document
+---
+
+```{r}
+# data cleaning and formatting
+#import packages
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(corrplot)
+# import data and remove unnecessary columns change date format
+library(readr)
+sd <- read_csv("spotify_dataset.csv", 
+    col_types = cols(`Release Date` = col_date(format = "%Y-%m-%d"), 
+        `Weeks Charted` = col_skip(),
+        `Index` = col_skip()))
+#get rid of spaces in columns with stringr package
+names(sd)<-str_replace_all(names(sd), c(" " = "."))
+#Get rid of values with empty values
+sd <- na.omit(sd)
+# Change Chord and Song.ID to factor data type
+sd$Chord <- as.factor(sd$Chord)
+str(sd$Chord)
+sd$Song.ID <- as.factor(sd$Song.ID)
+# Set Week of highest charting to usable date format
+sd$Week.of.Highest.Charting <- sapply(strsplit(sd$Week.of.Highest.Charting, "--"), head, 1)
+sd$Week.of.Highest.Charting <- as.Date(sd$Week.of.Highest.Charting, format = "%Y-%m-%d")
+# Reformat genre column to one only first genre
+sd$Genre <- gsub(",.*", "", sd$Genre)
+sd$Genre <- gsub(",.*|\\].*", "", sd$Genre)
+sd$Genre <- gsub(",.*|\\].*", "", sd$Genre)
+sd$Genre <- gsub(",.*|\\].*|\\[", "", sd$Genre)
+sd$Genre <- gsub("'", '', sd$Genre)
+sd$Genre <- as.factor(sd$Genre)
+#check the summary of the data
+summary(sd)
+str(sd$Genre)
+colnames(sd)[colnames(sd) == 'Chord'] <- 'Key.Signature'
+colnames(sd)[colnames(sd) == 'Duration.(ms)'] <- 'Duration.ms'
+View(sd)
+```
+
+Data set mislabels key signature as chord
+
+
+```{r}
+#investigate genre column
+# create dataset totaling number of streams for songs that appear multiple times
+# df of distinct song ids
+sdu <- sd %>% distinct(Song.ID, .keep_all = TRUE )
+# df of distinct song ids without stream column
+sdu <- subset(sdu, select = -c(Streams))
+# df of song id and stream sum
+stream_sum <- aggregate(Streams ~ Song.ID, sd, sum)
+# df with no duplicates of song id and summed stream number
+sd_no_dup <- merge(sdu, stream_sum, by = "Song.ID")
+# correlation matrix of numeric variables with no duplicates
+sdnd <- subset(sd_no_dup, select = -c(Week.of.Highest.Charting , Song.ID , Artist,  Song.Name , Genre ,
+                                      Release.Date , Key.Signature ))
+sdndc <- cor(as.matrix(sdnd))
+sd_corr <- corrplot(sdndc, method = 'circle')
+#investigate genre column (no duplicate song id)
+#subset with top 10 genres
+sdndg <- subset(sd_no_dup, Genre == "dance pop" | Genre == "latin" | Genre == "pop" | Genre == "atl hip hop" | 
+                Genre == "hip hop" | Genre == "k-pop" | Genre == "melodic rap" | 
+                Genre == "brooklyn drill" | Genre == "chicago rap" | Genre == "canadian pop" )
+ggplot(sdndg, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+
+
+```{r}
+# turn artists into factor data type
+sd_no_dup$Artist <- as.factor(sd_no_dup$Artist)
+str(sd_no_dup$Artist)
+# view frequency of artists
+at <- table(sd_no_dup$Artist)
+at <- sort(at, decreasing = TRUE)
+
+# subset table to top 10 most frequent artists
+at2 <- head(at, 10)
+at2 <- as.matrix(at2)
+at2 <- at2[,1] 
+at2
+
+# subset the data to top 10 artists and find their mean spotify metrics
+ASM <- subset(sd_no_dup, Artist == "Taylor Swift" | Artist == "Justin Bieber" | Artist == "Lil Uzi Vert"
+              | Artist == "Juice WRLD" | Artist == "BTS" | Artist == "Pop Smoke"
+              | Artist == "Bad Bunny" | Artist == "Eminem" | Artist == "The Weeknd"
+              | Artist == "Drake")
+
+#drop entries with no specified genre
+ASM <- ASM %>% filter(Genre != "") %>% droplevels()
+
+ASMax <- aggregate(cbind( Number.of.Times.Charted, Artist.Followers)
+                   ~ Artist, data = ASM, FUN = max)
+ASMin <- aggregate( Highest.Charting.Position ~ Artist, data = ASM, FUN = min)
+ASMean <- aggregate(cbind(Popularity, Danceability, Energy, Loudness, Speechiness, Acousticness,
+                          Liveness, Tempo, Valence, Duration.ms,  Streams) ~ Artist, data = ASM, FUN = mean)
+TopArtists <- merge(ASMin, ASMax, by = 'Artist')
+TopArtists <- merge(TopArtists, ASMean, by = 'Artist')
+
+View(TopArtists)
+str(ASM$Genre)
+```
+
+
+
+```{r}
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Popularity) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Danceability) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Energy) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Valence) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Popularity, y = Valence, color = Key.Signature) +
+  geom_point()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature) +
+  geom_bar()
+```
+
+
+```{r}
+#see artist's individual range of valence of songs on the top 200
+ggplot(ASM, aes(x = Artist, y = Valence, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+  ggtitle("Range of Valence for Each Artist in Top 10")
+
+sd.TS <- sd %>% filter(Artist == "Taylor Swift")
+ggplot(sd.TS, aes(x=Song.Name, y = Valence, color = Key.Signature)) +
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 10, vjust = 0.5, hjust=1)) +
+  ggtitle("Valence of Indivisual Song on Taylor Swift")
+
+ggplot(ASM, aes(x = Artist, y = Genre, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Genres of Top 10 Artists")
+
+ggplot(ASM, aes(x = Key.Signature, y = Genre, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Popular Key Signatures of Top 10 Artists")
+
+ggplot(ASM, aes(Artist))+ 
+  geom_bar(aes(fill=Genre), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+  labs(title="Histogram on Categorical Variable", 
+       subtitle="Artist's Respected Genres") 
+
+```
+
+```{r}
+# correlation matrix of numeric variables of top 10 artists
+ASM_ss <- subset(ASM, select = -c(Week.of.Highest.Charting , Song.ID , Artist,  Song.Name , Genre ,
+                                      Release.Date , Key.Signature ))
+ASM_ssc <- cor(as.matrix(ASM_ss))
+ASM_corr <- corrplot(sdndc, method = 'circle')
+```
+
+```{r}
+#topartist analysis
+
+ggplot(TopArtists, aes(x = Popularity, y = Streams, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Popularity to Number of Streams for Top 10 Artists")
+
+ggplot(ASM, aes(x=Energy, y=Loudness))+
+  geom_point(size = 2) + 
+  geom_smooth(formula = y ~ x, method = 'lm') +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Loudness According to Energy of Top 10 Artists Songs")
+
+ASM_model <- lm((Loudness ~ Energy), data = ASM)
+summary(ASM_model)
+
+```
