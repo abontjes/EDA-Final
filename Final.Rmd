@@ -39,6 +39,8 @@ str(sd$Chord)
 
 sd$Song.ID <- as.factor(sd$Song.ID)
 
+df <- sd
+
 # Set Week of highest charting to usable date format
 sd$Week.of.Highest.Charting <- sapply(strsplit(sd$Week.of.Highest.Charting, "--"), head, 1)
 sd$Week.of.Highest.Charting <- as.Date(sd$Week.of.Highest.Charting, format = "%Y-%m-%d")
@@ -56,6 +58,8 @@ sd$Genre <- as.factor(sd$Genre)
 #check the summary of the data
 summary(sd)
 str(sd$Genre)
+
+colnames(sd)[colnames(sd) == 'Chord'] <- 'Key.Signature'
 
 colnames(sd)[colnames(sd) == 'Duration.(ms)'] <- 'Duration.ms'
 
@@ -78,7 +82,7 @@ sd_no_dup <- merge(sdu, stream_sum, by = "Song.ID")
 
 # correlation matrix of numeric variables with no duplicates
 sdnd <- subset(sd_no_dup, select = -c(Week.of.Highest.Charting , Song.ID , Artist,  Song.Name , Genre ,
-                                      Release.Date , Chord ))
+                                      Release.Date , Key.Signature ))
 sdndc <- cor(as.matrix(sdnd))
 
 sd_corr <- corrplot(sdndc, method = 'circle')
@@ -90,7 +94,7 @@ sdndg <- subset(sd_no_dup, Genre == "dance pop" | Genre == "latin" | Genre == "p
                 Genre == "hip hop" | Genre == "k-pop" | Genre == "melodic rap" | 
                 Genre == "brooklyn drill" | Genre == "chicago rap" | Genre == "canadian pop" )
 
-ggplot(sdndg, aes(Genre)) + geom_bar() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+ggplot(sdndg, aes(Genre)) + geom_bar(fill = "cadetblue4") + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=.4)) + ylab("Frequency") + labs(title = "Distribution of Genres (First Entry)")
 
 
 
@@ -117,6 +121,9 @@ ASM <- subset(sd_no_dup, Artist == "Taylor Swift" | Artist == "Justin Bieber" | 
               | Artist == "Bad Bunny" | Artist == "Eminem" | Artist == "The Weeknd"
               | Artist == "Drake")
 
+#drop entries with no specified genre
+ASM <- ASM %>% filter(Genre != "") %>% droplevels()
+
 ASMax <- aggregate(cbind( Number.of.Times.Charted, Artist.Followers)
                    ~ Artist, data = ASM, FUN = max)
 
@@ -127,11 +134,227 @@ ASMean <- aggregate(cbind(Popularity, Danceability, Energy, Loudness, Speechines
 
 TopArtists <- merge(ASMin, ASMax, by = 'Artist')
 TopArtists <- merge(TopArtists, ASMean, by = 'Artist')
-View(TopArtists)
 
 str(ASM$Genre)
 
 ```
+
+```{r}
+gc <- read_csv('GenreCount.csv')
+gc <- as.data.frame(gc)
+#filter top 15 Genres
+gc <- gc[1:10, ]
+ggplot(gc, aes(x = Genre, y = Count)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=.5)) +
+  ggtitle("Top 10 Genres in Spotify Top 200 2020-2021")
+```
+
+```{r}
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Popularity) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Danceability) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Energy) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature, y = Valence) +
+  geom_boxplot()
+
+ggplot(data = sd) +
+  aes(x = Popularity, y = Valence, color = Key.Signature) +
+  geom_point()
+
+ggplot(data = sd) +
+  aes(x = Key.Signature) +
+  geom_bar()
+```
+
+```{r}
+#see artist's individual range of valence of songs on the top 200
+ggplot(ASM, aes(x = Artist, y = Valence, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+  ggtitle("Range of Valence for Each Artist in Top 10")
+
+sd.TS <- sd %>% filter(Artist == "Taylor Swift")
+
+ggplot(sd.TS, aes(x=Song.Name, y = Valence, color = Key.Signature)) +
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 10, vjust = 0.5, hjust=1)) +
+  ggtitle("Valence of Indivisual Song on Taylor Swift")
+
+ggplot(ASM, aes(x = Genre, y = Artist, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Genres of Top 10 Artists")
+
+ggplot(ASM, aes(x = Key.Signature, y = Genre, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Popular Key Signatures of Top 10 Artists")
+
+ggplot(ASM, aes(Artist))+ 
+  geom_bar(aes(fill=Genre), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+  labs(title="Histogram on Categorical Variable", 
+       subtitle="Artist's Respected Genres") 
+```
+
+```{r}
+# correlation matrix of numeric variables of top 10 artists
+ASM_ss <- subset(ASM, select = -c(Week.of.Highest.Charting , Song.ID , Artist,  Song.Name , Genre ,
+                                      Release.Date , Key.Signature ))
+ASM_ssc <- cor(as.matrix(ASM_ss))
+ASM_corr <- corrplot(sdndc, method = 'circle')
+```
+
+```{r}
+#topartist analysis
+ggplot(TopArtists, aes(x = Popularity, y = Streams, color = Artist))+
+  geom_count() +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Popularity to Number of Streams for Top 10 Artists")
+
+ggplot(ASM, aes(x=Energy, y=Loudness))+
+  geom_point(size = 2) + 
+  geom_smooth(formula = y ~ x, method = 'lm') +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1)) +
+  ggtitle("Loudness According to Energy of Top 10 Artists Songs")
+
+ASM_model <- lm((Loudness ~ Energy), data = ASM)
+summary(ASM_model)
+```
+
+```{r}
+#genre analysis for the whole df
+ggplot(sd_no_dup, aes(x= Genre)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ggtitle("Barchart of all Genres")
+```
+
+```{r}
+
+# df of distinct song ids
+sdu <- df %>% distinct(Song.ID, .keep_all = TRUE )
+
+# df of distinct song ids without stream column
+sdu <- subset(sdu, select = -c(Streams))
+
+# df of song id and stream sum
+stream_sum <- aggregate(Streams ~ Song.ID, df, sum)
+
+# df with no duplicates of song id and summed stream number
+df_no_dup <- merge(sdu, stream_sum, by = "Song.ID")
+
+is_genre <- read_csv("is_genre.csv", col_types = cols(`atl-hip-hop` = col_logical(), 
+    `canadian-pop` = col_logical(), `dance-pop` = col_logical(), 
+    electropop = col_logical(), `hip-hop` = col_logical(), 
+    latin = col_logical(), `melodic-rap` = col_logical(), 
+    pop = col_logical(), `pop-dance` = col_logical(), 
+    `pop-rap` = col_logical(), `post-teen-pop` = col_logical(), 
+    rap = col_logical(), reggaeton = col_logical(), 
+    trap = col_logical(), `trap-latino` = col_logical()))
+
+names(is_genre)<-str_replace_all(names(is_genre), c("-" = "."))
+
+is_genre$Song.ID <- as.factor(is_genre$Song.ID)
+
+is_genre <- unique(is_genre)
+
+is_genre$pop <- as.factor(is_genre$pop)
+
+SD <- merge(df_no_dup,is_genre, by = 'Song.ID')
+SD <- na.omit(SD)
+
+colnames(SD)[colnames(SD) == 'Chord'] <- 'Key.Signature'
+
+colnames(SD)[colnames(SD) == 'Duration.(ms)'] <- 'Duration.ms'
+
+summary(SD)
+```
+
+```{r}
+
+ggplot(data = SD, aes(x = Speechiness, color = latin)) +
+  geom_histogram(binwidth = .05) +
+  facet_wrap( ~ latin) +
+    theme(legend.key = element_rect(fill = NA),
+    legend.position = "bottom",
+    strip.background = element_rect(fill = NA),
+    axis.title.y = element_text(angle = 0))
+
+
+```
+
+```{r}
+
+#Basic analysis of variables
+
+SD$Streams.Millions <- (SD$Streams/1000000)
+
+ggplot(SD, aes(Streams.Millions)) + geom_histogram(binwidth = 1, fill = "brown4") +
+  xlab("Streams (Millions)") + ylab("Frequency") + labs(title = "Distribution of Streams (Millions)")
+
+ggplot(SD, aes(Popularity)) + geom_histogram(binwidth = 1, fill = "darkorchid4") +
+  ylab("Frequency") + labs(title = "Distribution of Spotify Popularity Metric") + xlab("Popularity")
+
+ggplot(SD, aes(Danceability)) + geom_histogram(binwidth = .05, fill = "darkgoldenrod3") +
+  ylab("Frequency") + labs(title = "Distribution of Spotify Danceability Metric")  + xlab("Danceability")
+
+ggplot(SD, aes(Energy)) + geom_histogram(binwidth = .05, fill = "cadetblue4") +
+  ylab("Frequency") + labs(title = "Distribution of Spotify Energy Metric")   + xlab("Energy")
+
+ggplot(SD, aes(Speechiness)) + geom_histogram(binwidth = .05, fill = "darkred") +
+  ylab("Frequency") + labs(title = "Distribution of Spotify Speechiness Metric")   + xlab("Speechiness")
+
+ggplot(SD, aes(Acousticness)) + geom_histogram(binwidth = .05, fill = "aquamarine4") +
+  ylab("Frequency") + labs(title = "Distribution of Spotify Acousticness Metric")  + xlab("Acousticness")
+
+ggplot(SD, aes(Liveness)) + geom_histogram(binwidth = .05, fill = "chocolate3") +
+  ylab("Frequency") + labs(title = "Distribution of Spotify Liveness Metric")  + xlab("Liveness")
+
+ggplot(SD, aes(Valence)) + geom_histogram(binwidth = .05, fill = "darkorchid") +
+  ylab("Frequency") + labs(title = "Distribution of Spotify Valence Metric")  + xlab("Valence")
+
+ggplot(SD, aes(Loudness)) + geom_histogram(binwidth = .5, fill = "chartreuse3") +
+  ylab("Frequency") + labs(title = "Distribution of Loudness (dB)")  + xlab("Loudness (dB)")
+
+ggplot(SD, aes(Tempo)) + geom_histogram(binwidth = 5, fill = "blue4") +
+  ylab("Frequency") + labs(title = "Distribution of Average Tempo (BPM)")  + xlab("Tempo (BPM)")
+
+SD$Duration.min <- (SD$Duration.ms/60000)
+
+ggplot(SD, aes(Duration.min)) + geom_histogram(binwidth = .25, fill = "darkorange2") +
+  ylab("Frequency") + labs(title = "Distribution of Duration (Minutes)")  + xlab("Duration (Minutes)")
+
+UnpopularSongs <- subset(SD, Popularity < 43)
+UnpopularSongs$Song.Name
+
+ggplot(gc, aes(x = Genre, y = Count)) +
+  geom_col(fill = "brown4") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+  ggtitle("Top 10 Genres in Spotify Top 200 2020-2021") +
+  ylab("Frequency")
+
+model <- lm(Streams ~ Danceability + Energy + Speechiness + Acousticness + Liveness + Valence + 
+              Loudness + Tempo + Duration.min, SD)
+summary(model)
+
+model <- lm(Streams ~ Danceability + Speechiness+ Valence + Tempo, SD)
+summary(model)
+```
+
+
+
+
 
 
 
